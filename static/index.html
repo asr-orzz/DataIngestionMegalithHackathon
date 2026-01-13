@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Article Ingestion</title>
+    <style>
+      :root{
+        --bg:#0b1020;
+        --card:#111935;
+        --card2:#0e1630;
+        --text:#e8ecff;
+        --muted:#a9b3d6;
+        --border:rgba(255,255,255,.10);
+        --accent:#6ea8fe;
+        --accent2:#7ee787;
+        --danger:#ff6b6b;
+        --shadow: 0 20px 60px rgba(0,0,0,.35);
+        --radius: 16px;
+      }
+      *{box-sizing:border-box}
+      body{
+        margin:0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+        background: radial-gradient(1200px 700px at 10% -10%, rgba(110,168,254,.35), transparent 60%),
+                    radial-gradient(900px 500px at 110% 10%, rgba(126,231,135,.22), transparent 55%),
+                    var(--bg);
+        color:var(--text);
+        padding: 40px 16px;
+      }
+      .wrap{max-width: 980px; margin:0 auto;}
+      .header{
+        display:flex; gap:14px; align-items:center; justify-content:space-between;
+        margin-bottom: 18px;
+      }
+      .title h1{margin:0; font-size: 22px; letter-spacing:.2px;}
+      .title p{margin:6px 0 0; color:var(--muted); font-size: 14px;}
+      .pill{
+        display:inline-flex; align-items:center; gap:8px;
+        padding:8px 12px; border:1px solid var(--border); border-radius:999px;
+        background: rgba(255,255,255,.05);
+        color: var(--muted);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      .dot{width:8px; height:8px; border-radius:50%; background: var(--muted);}
+      .grid{
+        display:grid;
+        grid-template-columns: 1.2fr .8fr;
+        gap: 16px;
+      }
+      @media (max-width: 860px){
+        .grid{grid-template-columns: 1fr;}
+        .pill{display:none;}
+      }
+      .card{
+        background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+        border:1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        overflow:hidden;
+      }
+      .card h2{
+        margin:0;
+        padding: 16px 18px;
+        font-size: 14px;
+        color: var(--muted);
+        border-bottom: 1px solid var(--border);
+        background: rgba(255,255,255,.03);
+      }
+      form{padding: 18px;}
+      .row{display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;}
+      @media (max-width: 600px){ .row{grid-template-columns: 1fr;} }
+      .field{display:flex; flex-direction:column; gap:6px;}
+      label{font-size:12px; color:var(--muted);}
+      input, textarea{
+        width:100%;
+        padding: 11px 12px;
+        border-radius: 12px;
+        border:1px solid rgba(255,255,255,.12);
+        background: rgba(10, 14, 30, .55);
+        color: var(--text);
+        outline:none;
+        transition: border-color .15s, box-shadow .15s, transform .05s;
+      }
+      input:focus, textarea:focus{
+        border-color: rgba(110,168,254,.6);
+        box-shadow: 0 0 0 4px rgba(110,168,254,.18);
+      }
+      textarea{min-height: 220px; resize: vertical;}
+      .actions{
+        display:flex; gap: 10px; align-items:center; justify-content:space-between;
+        margin-top: 14px;
+      }
+      .btn{
+        display:inline-flex; align-items:center; justify-content:center; gap:10px;
+        padding: 10px 14px;
+        border-radius: 12px;
+        border:1px solid rgba(255,255,255,.14);
+        background: rgba(255,255,255,.07);
+        color: var(--text);
+        cursor:pointer;
+        font-weight: 600;
+        transition: transform .05s, background .15s, border-color .15s, opacity .15s;
+        user-select:none;
+      }
+      .btn:hover{ background: rgba(255,255,255,.10); border-color: rgba(255,255,255,.20); }
+      .btn:active{ transform: translateY(1px); }
+      .btn.primary{
+        background: linear-gradient(135deg, rgba(110,168,254,.95), rgba(126,231,135,.65));
+        border-color: rgba(255,255,255,.18);
+        color: #071024;
+      }
+      .btn[disabled]{ opacity:.6; cursor:not-allowed; }
+      .btn.secondary{ background: rgba(255,255,255,.05); }
+      .hint{font-size: 12px; color: var(--muted); line-height: 1.4;}
+      .statusWrap{padding: 18px;}
+      .status{
+        display:flex; gap:10px; align-items:flex-start;
+        padding: 12px 12px;
+        border-radius: 12px;
+        border:1px solid rgba(255,255,255,.12);
+        background: rgba(255,255,255,.04);
+      }
+      .status .icon{
+        width: 18px; height: 18px; border-radius: 6px;
+        display:flex; align-items:center; justify-content:center;
+        border:1px solid rgba(255,255,255,.14);
+        background: rgba(255,255,255,.06);
+        flex: 0 0 auto;
+        margin-top: 1px;
+      }
+      .status strong{display:block; font-size: 13px; margin-bottom: 4px;}
+      .status small{display:block; color: var(--muted); font-size: 12px; white-space: pre-wrap;}
+      .status.ok{border-color: rgba(126,231,135,.35); background: rgba(126,231,135,.08);}
+      .status.err{border-color: rgba(255,107,107,.40); background: rgba(255,107,107,.08);}
+      .status.loading{border-color: rgba(110,168,254,.35); background: rgba(110,168,254,.08);}
+      .spinner{
+        width:14px; height:14px; border-radius:50%;
+        border:2px solid rgba(255,255,255,.35);
+        border-top-color: rgba(255,255,255,.85);
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin{to{transform:rotate(360deg)}}
+      .req{color: rgba(255,255,255,.75);}
+      .footer{
+        margin-top: 14px;
+        color: var(--muted);
+        font-size: 12px;
+        text-align:center;
+      }
+      .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;}
+    </style>
+  </head>
+
+  <body>
+    <div class="wrap">
+      <div class="header">
+        <div class="title">
+          <h1>Article Ingestion</h1>
+          <p>Submit an article to your ingestion DB (Neon). Pathway can consume it later.</p>
+        </div>
+        <div class="pill" title="Connection flow">
+          <span class="dot" id="pillDot"></span>
+          <span class="mono">HTML → API → Neon</span>
+        </div>
+      </div>
+
+      <div class="grid">
+        <!-- Form card -->
+        <div class="card">
+          <h2>Article Details</h2>
+          <form id="form" onsubmit="event.preventDefault(); send();">
+            <div class="row">
+              <div class="field">
+                <label for="title">Title <span class="req">*</span></label>
+                <input id="title" placeholder="e.g., Apple announces new..." autocomplete="off" />
+              </div>
+              <div class="field">
+                <label for="author">Author</label>
+                <input id="author" placeholder="Optional" autocomplete="off" />
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="field">
+                <label for="source_name">Source name</label>
+                <input id="source_name" value="manual" autocomplete="off" />
+              </div>
+              <div class="field">
+                <label for="url">URL</label>
+                <input id="url" placeholder="https://example.com/article" autocomplete="off" />
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="content">Content <span class="req">*</span></label>
+              <textarea id="content" placeholder="Paste your article content here..."></textarea>
+            </div>
+
+            <div class="actions">
+              <div class="hint">
+                Required: <span class="mono">title</span>, <span class="mono">content</span>.
+                <br/>
+                Tip: Use <span class="mono">Ctrl/⌘ + Enter</span> to submit.
+              </div>
+
+              <div style="display:flex; gap:10px;">
+                <button class="btn secondary" type="button" onclick="clearForm()">Clear</button>
+                <button class="btn primary" id="submitBtn" type="submit">
+                  <span id="btnIcon" style="display:none;"><span class="spinner"></span></span>
+                  <span id="btnText">Submit</span>
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- Status card -->
+        <div class="card">
+          <h2>Status</h2>
+          <div class="statusWrap">
+            <div id="status" class="status">
+              <div class="icon">ℹ️</div>
+              <div>
+                <strong>Ready</strong>
+                <small>Fill the form and submit. Response will appear here.</small>
+              </div>
+            </div>
+
+            <div class="footer">
+              Endpoint: <span class="mono">POST /submit</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const el = (id) => document.getElementById(id);
+
+      // Ctrl/Cmd + Enter submit
+      document.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") send();
+      });
+
+      function setStatus(kind, title, message) {
+        const status = el("status");
+        const icon = kind === "ok" ? "✅" : kind === "err" ? "⚠️" : kind === "loading" ? "⏳" : "ℹ️";
+
+        status.className = "status" + (kind ? " " + kind : "");
+        status.innerHTML = `
+          <div class="icon">${kind === "loading" ? '<span class="spinner"></span>' : icon}</div>
+          <div>
+            <strong>${escapeHtml(title)}</strong>
+            <small>${escapeHtml(message)}</small>
+          </div>
+        `;
+      }
+
+      function setLoading(isLoading) {
+        const btn = el("submitBtn");
+        el("btnIcon").style.display = isLoading ? "inline-flex" : "none";
+        el("btnText").textContent = isLoading ? "Submitting..." : "Submit";
+        btn.disabled = isLoading;
+      }
+
+      function clearForm() {
+        el("title").value = "";
+        el("author").value = "";
+        el("source_name").value = "manual";
+        el("url").value = "";
+        el("content").value = "";
+        setStatus("", "Ready", "Fill the form and submit. Response will appear here.");
+      }
+
+      function escapeHtml(str) {
+        return (str ?? "").toString()
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      async function send() {
+        const payload = {
+          title: el("title").value.trim(),
+          content: el("content").value.trim(),
+          author: el("author").value.trim(),
+          source_name: el("source_name").value.trim() || "manual",
+          url: el("url").value.trim()
+        };
+
+        if (!payload.title || !payload.content) {
+          setStatus("err", "Missing required fields", "Title and content are required.");
+          return;
+        }
+
+        // Basic URL validation (optional field)
+        if (payload.url && !/^https?:\/\/.+/i.test(payload.url)) {
+          setStatus("err", "Invalid URL", "URL must start with http:// or https://");
+          return;
+        }
+
+        try {
+          setLoading(true);
+          setStatus("loading", "Processing", "Submitting your article to the backend...");
+
+          const res = await fetch("/submit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+
+          const text = await res.text();
+
+          if (!res.ok) {
+            setStatus("err", "Submission failed", text);
+            return;
+          }
+
+          // Try to parse JSON for a nicer success message
+          let parsed = null;
+          try { parsed = JSON.parse(text); } catch (_) {}
+
+          if (parsed && parsed.ok) {
+            setStatus(
+              "ok",
+              "Submitted successfully",
+              `Saved to Neon.\nID: ${parsed.id ?? "—"}\nCreated: ${parsed.created_at ?? "—"}`
+            );
+            // Optional: clear content after success
+            // el("content").value = "";
+          } else {
+            setStatus("ok", "Submitted successfully", text);
+          }
+        } catch (e) {
+          setStatus("err", "Network error", String(e));
+        } finally {
+          setLoading(false);
+        }
+      }
+    </script>
+  </body>
+</html>
