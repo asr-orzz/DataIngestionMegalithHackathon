@@ -8,6 +8,9 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+from datetime import datetime, timezone
+
+
 
 import psycopg
 from psycopg.rows import dict_row
@@ -56,3 +59,8 @@ def submit_article(a: ArticleIn):
         return {"ok": True, "id": str(row["id"]), "created_at": row["created_at"].isoformat()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DB insert failed: {e}")
+
+
+@app.get("/ping")
+def ping():
+    return {"ok": True, "ts": datetime.now(timezone.utc).isoformat()}
