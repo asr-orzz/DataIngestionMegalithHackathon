@@ -2,31 +2,33 @@ from __future__ import annotations
 
 import os
 from typing import Optional
+from datetime import datetime, timezone
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
-from datetime import datetime, timezone
-
-
 
 import psycopg
 from psycopg.rows import dict_row
 
+# Load environment variables
 load_dotenv()
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()  # Neon connection string
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 if not DATABASE_URL:
     raise RuntimeError("Missing DATABASE_URL (Neon Postgres connection string)")
 
 app = FastAPI()
 
-# Serve /static and homepage
+# Serve static files and homepage
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
+# =========================
+# Models
+# =========================
 class ArticleIn(BaseModel):
     title: str = Field(min_length=1)
     content: str = Field(min_length=1)
@@ -35,6 +37,9 @@ class ArticleIn(BaseModel):
     url: Optional[str] = ""
 
 
+# =========================
+# Routes
+# =========================
 @app.get("/", response_class=HTMLResponse)
 def home():
     with open("static/index.html", "r", encoding="utf-8") as f:
@@ -52,15 +57,44 @@ def submit_article(a: ArticleIn):
                     VALUES (%s, %s, %s, %s, %s)
                     RETURNING id, created_at;
                     """,
-                    (a.title, a.content, a.author or "", a.source_name or "manual", a.url or ""),
+                    (
+                        a.title,
+                        a.content,
+                        a.author or "",
+                        a.source_name or "manual",
+                        a.url or "",
+                    ),
                 )
                 row = cur.fetchone()
                 conn.commit()
-        return {"ok": True, "id": str(row["id"]), "created_at": row["created_at"].isoformat()}
+
+        return {
+            "ok": True,
+            "id": str(row["id"]),
+            "created_at": row["created_at"].isoformat(),
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DB insert failed: {e}")
+
+
+# =========================
+# Health / Keep-alive
+# =========================
+@app.get("/health")
+def health():
+    return {"ok": True}
+
+
+@app.head("/health")
+def health_head():
+    return Response(status_code=200)
 
 
 @app.get("/ping")
 def ping():
     return {"ok": True, "ts": datetime.now(timezone.utc).isoformat()}
+
+
+@app.head("/ping")
+def ping_head():
+    return Response(status_code=200)
